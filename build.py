@@ -333,7 +333,7 @@ html_template = '''<!DOCTYPE html>
             pointer-events: none; opacity: 0.025;
             background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
         }
-        .container { max-width: 1440px; margin: 0 auto; padding: 50px 40px 80px; }
+        .container { max-width: 1440px; margin: 0 auto; padding: 50px 40px 80px; overflow-x: hidden; }
         .header { margin-bottom: 60px; }
         .header::after { content: ''; display: block; width: 60px; height: 1px; background: var(--gold); margin-top: 30px; opacity: 0.4; }
         .eyebrow { font-size: 11px; letter-spacing: 4px; text-transform: uppercase; color: var(--gold); opacity: 0.6; margin-bottom: 14px; }
@@ -351,7 +351,26 @@ html_template = '''<!DOCTYPE html>
         .mode-btn:hover { color: var(--gold); border-color: var(--gold-dim); }
         .mode-btn.active { color: var(--gold); border-color: var(--gold); background: var(--gold-faint); }
         .main-grid { display: grid; grid-template-columns: 1fr 240px; gap: 40px; align-items: start; margin-top: 24px; }
-        @media (max-width: 1000px) { .main-grid { grid-template-columns: 1fr; } }
+        @media (max-width: 1000px) {
+            .main-grid { grid-template-columns: 1fr; }
+            .sidebar { position: static; }
+        }
+        @media (max-width: 600px) {
+            .container { padding: 24px 16px 40px; }
+            .header { margin-bottom: 30px; }
+            .eyebrow { font-size: 9px; letter-spacing: 3px; margin-bottom: 10px; }
+            .title { font-size: 28px; margin-bottom: 10px; }
+            .subtitle { font-size: 14px; }
+            .controls-bar { gap: 4px; margin-bottom: 8px; }
+            .controls-bar .label { font-size: 8px; margin-right: 4px; }
+            .mode-btn { font-size: 9px; padding: 6px 10px; letter-spacing: 1px; }
+            .chart-container { padding: 10px 2px 2px; }
+            .chart-container::before { font-size: 7px; letter-spacing: 2px; top: 3px; left: 8px; }
+            .sidebar { display: grid; grid-template-columns: 1fr 1fr; gap: 0 20px; }
+            .sidebar-title { grid-column: 1 / -1; }
+            .footer { flex-direction: column; gap: 4px; }
+            .footer-text { font-size: 9px; }
+        }
         .chart-container {
             background: var(--bg-card); border: 1px solid var(--border);
             padding: 20px 10px 10px; position: relative;
@@ -437,7 +456,15 @@ function getChartKey() {
 function renderChart() {
     const key = getChartKey();
     const spec = JSON.parse(CHARTS[key]);
-    Plotly.react('chart', spec.data, spec.layout, {displayModeBar: true, modeBarButtonsToRemove: ['lasso2d','select2d']});
+    const isMobile = window.innerWidth < 600;
+    if (isMobile) {
+        spec.layout.height = 400;
+        spec.layout.margin = {t: 10, b: 30, l: 40, r: 10};
+        spec.layout.legend = {font: {size: 8}, x: 0, y: 1};
+        if (spec.layout.yaxis) spec.layout.yaxis.title = null;
+        if (spec.layout.xaxis) spec.layout.xaxis.title = null;
+    }
+    Plotly.react('chart', spec.data, spec.layout, {displayModeBar: !isMobile, responsive: true, modeBarButtonsToRemove: ['lasso2d','select2d']});
 }
 
 function setView(btn) {
@@ -456,6 +483,7 @@ function setFilter(btn) {
 }
 
 renderChart();
+window.addEventListener('resize', () => { clearTimeout(window._rz); window._rz = setTimeout(renderChart, 200); });
 </script>
 </body>
 </html>'''
