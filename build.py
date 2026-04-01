@@ -255,7 +255,7 @@ def standings_html(season_data):
                           'div': TEAM_META[team]['div'], 'color': TEAM_META[team]['color'],
                           'playoff': team in PLAYOFF_TEAMS_2025})
 
-    html = ''
+    html = '<div class="standings-grid">'
     for div in DIVISIONS:
         div_teams = sorted([s for s in standings if s['div'] == div], key=lambda x: x['pct'], reverse=True)
         html += f'<div class="division-block"><div class="division-label">{div}</div>'
@@ -268,6 +268,7 @@ def standings_html(season_data):
                      f'<span class="standing-pct">.{int(s["pct"]*1000):03d}</span>'
                      f'{post}</div>')
         html += '</div>'
+    html += '</div>'
     return html
 
 
@@ -366,15 +367,13 @@ html_template = '''<!DOCTYPE html>
             .mode-btn { font-size: 9px; padding: 6px 10px; letter-spacing: 1px; }
             .chart-container { padding: 10px 2px 2px; }
             .chart-container::before { font-size: 7px; letter-spacing: 2px; top: 3px; left: 8px; }
-            .sidebar { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0 16px; }
-            .sidebar-title { grid-column: 1 / -1; }
+            .standings-grid { grid-template-columns: 1fr 1fr; gap: 0 16px; }
             .division-block { margin-bottom: 12px; }
             .footer { flex-direction: column; gap: 4px; }
             .footer-text { font-size: 9px; }
         }
         @media (min-width: 601px) and (max-width: 1000px) {
-            .sidebar { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0 24px; }
-            .sidebar-title { grid-column: 1 / -1; }
+            .standings-grid { grid-template-columns: 1fr 1fr 1fr; gap: 0 24px; }
         }
         .chart-container {
             background: var(--bg-card); border: 1px solid var(--border);
@@ -386,6 +385,7 @@ html_template = '''<!DOCTYPE html>
         }
         .sidebar { position: sticky; top: 40px; }
         .sidebar-title { font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: var(--gold); opacity: 0.5; margin-bottom: 20px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+        .standings-grid { display: grid; grid-template-columns: 1fr; gap: 0 20px; }
         .division-block { margin-bottom: 20px; }
         .division-label { font-size: 9px; letter-spacing: 2.5px; text-transform: uppercase; color: var(--text-dim); opacity: 0.5; margin-bottom: 6px; }
         .standing-row { display: flex; align-items: center; gap: 6px; padding: 3px 0; font-size: 12px; line-height: 1; }
