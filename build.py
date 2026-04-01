@@ -255,19 +255,29 @@ def standings_html(season_data):
                           'div': TEAM_META[team]['div'], 'color': TEAM_META[team]['color'],
                           'playoff': team in PLAYOFF_TEAMS_2025})
 
-    html = '<div class="standings-grid">'
-    for div in DIVISIONS:
+    def div_block(div):
         div_teams = sorted([s for s in standings if s['div'] == div], key=lambda x: x['pct'], reverse=True)
-        html += f'<div class="division-block"><div class="division-label">{div}</div>'
+        block = f'<div class="division-block"><div class="division-label">{div}</div>'
         for s in div_teams:
             post = '<span class="standing-playoff">POST</span>' if s['playoff'] else ''
-            html += (f'<div class="standing-row">'
-                     f'<span class="standing-dot" style="background:{s["color"]}"></span>'
-                     f'<span class="standing-abbr">{s["team"]}</span>'
-                     f'<span class="standing-record">{s["w"]}-{s["l"]}</span>'
-                     f'<span class="standing-pct">.{int(s["pct"]*1000):03d}</span>'
-                     f'{post}</div>')
-        html += '</div>'
+            block += (f'<div class="standing-row">'
+                      f'<span class="standing-dot" style="background:{s["color"]}"></span>'
+                      f'<span class="standing-abbr">{s["team"]}</span>'
+                      f'<span class="standing-record">{s["w"]}-{s["l"]}</span>'
+                      f'<span class="standing-pct">.{int(s["pct"]*1000):03d}</span>'
+                      f'{post}</div>')
+        block += '</div>'
+        return block
+
+    html = '<div class="standings-grid">'
+    html += '<div class="league-col"><div class="league-label">AMERICAN LEAGUE</div>'
+    for div in ['AL East', 'AL Central', 'AL West']:
+        html += div_block(div)
+    html += '</div>'
+    html += '<div class="league-col"><div class="league-label">NATIONAL LEAGUE</div>'
+    for div in ['NL East', 'NL Central', 'NL West']:
+        html += div_block(div)
+    html += '</div>'
     html += '</div>'
     return html
 
@@ -362,7 +372,9 @@ html_template = '''<!DOCTYPE html>
         }
         .sidebar { position: sticky; top: 40px; }
         .sidebar-title { font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: var(--gold); opacity: 0.5; margin-bottom: 20px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
-        .standings-grid { display: grid; grid-template-columns: 1fr; gap: 0 20px; }
+        .standings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 30px; }
+        .league-col {}
+        .league-label { font-size: 9px; letter-spacing: 3px; text-transform: uppercase; color: var(--gold); opacity: 0.4; margin-bottom: 14px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
         .division-block { margin-bottom: 20px; }
         .division-label { font-size: 9px; letter-spacing: 2.5px; text-transform: uppercase; color: var(--text-dim); opacity: 0.5; margin-bottom: 6px; }
         .standing-row { display: flex; align-items: center; gap: 6px; padding: 3px 0; font-size: 12px; line-height: 1; }
@@ -377,7 +389,7 @@ html_template = '''<!DOCTYPE html>
         @media (max-width: 1000px) {
             .main-grid { grid-template-columns: 1fr; }
             .sidebar { position: static; }
-            .standings-grid { grid-template-columns: 1fr 1fr 1fr; gap: 0 24px; }
+            .standings-grid { grid-template-columns: 1fr 1fr; gap: 0 30px; }
         }
         @media (max-width: 600px) {
             .container { padding: 24px 16px 40px; }
@@ -391,6 +403,7 @@ html_template = '''<!DOCTYPE html>
             .chart-container { padding: 10px 2px 2px; }
             .chart-container::before { font-size: 7px; letter-spacing: 2px; top: 3px; left: 8px; }
             .standings-grid { grid-template-columns: 1fr 1fr; gap: 0 16px; }
+            .league-label { font-size: 8px; margin-bottom: 10px; }
             .division-block { margin-bottom: 12px; }
             .footer { flex-direction: column; gap: 4px; }
             .footer-text { font-size: 9px; }
