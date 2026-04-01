@@ -366,10 +366,15 @@ html_template = '''<!DOCTYPE html>
             .mode-btn { font-size: 9px; padding: 6px 10px; letter-spacing: 1px; }
             .chart-container { padding: 10px 2px 2px; }
             .chart-container::before { font-size: 7px; letter-spacing: 2px; top: 3px; left: 8px; }
-            .sidebar { display: grid; grid-template-columns: 1fr 1fr; gap: 0 20px; }
+            .sidebar { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0 16px; }
             .sidebar-title { grid-column: 1 / -1; }
+            .division-block { margin-bottom: 12px; }
             .footer { flex-direction: column; gap: 4px; }
             .footer-text { font-size: 9px; }
+        }
+        @media (min-width: 601px) and (max-width: 1000px) {
+            .sidebar { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0 24px; }
+            .sidebar-title { grid-column: 1 / -1; }
         }
         .chart-container {
             background: var(--bg-card); border: 1px solid var(--border);
