@@ -473,7 +473,7 @@ function renderChart() {
         spec.layout.height = 500;
         spec.layout.margin = {t: 10, b: 35, l: 50, r: 15};
     }
-    spec.layout.showlegend = !isTablet;
+    spec.layout.showlegend = false;
     Plotly.react('chart', spec.data, spec.layout, {displayModeBar: !isMobile, responsive: true, modeBarButtonsToRemove: ['lasso2d','select2d']});
 }
 
