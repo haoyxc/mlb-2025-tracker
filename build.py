@@ -352,29 +352,6 @@ html_template = '''<!DOCTYPE html>
         .mode-btn:hover { color: var(--gold); border-color: var(--gold-dim); }
         .mode-btn.active { color: var(--gold); border-color: var(--gold); background: var(--gold-faint); }
         .main-grid { display: grid; grid-template-columns: 1fr 240px; gap: 40px; align-items: start; margin-top: 24px; }
-        @media (max-width: 1000px) {
-            .main-grid { grid-template-columns: 1fr; }
-            .sidebar { position: static; }
-        }
-        @media (max-width: 600px) {
-            .container { padding: 24px 16px 40px; }
-            .header { margin-bottom: 30px; }
-            .eyebrow { font-size: 9px; letter-spacing: 3px; margin-bottom: 10px; }
-            .title { font-size: 28px; margin-bottom: 10px; }
-            .subtitle { font-size: 14px; }
-            .controls-bar { gap: 4px; margin-bottom: 8px; }
-            .controls-bar .label { font-size: 8px; margin-right: 4px; }
-            .mode-btn { font-size: 9px; padding: 6px 10px; letter-spacing: 1px; }
-            .chart-container { padding: 10px 2px 2px; }
-            .chart-container::before { font-size: 7px; letter-spacing: 2px; top: 3px; left: 8px; }
-            .standings-grid { grid-template-columns: 1fr 1fr; gap: 0 16px; }
-            .division-block { margin-bottom: 12px; }
-            .footer { flex-direction: column; gap: 4px; }
-            .footer-text { font-size: 9px; }
-        }
-        @media (min-width: 601px) and (max-width: 1000px) {
-            .standings-grid { grid-template-columns: 1fr 1fr 1fr; gap: 0 24px; }
-        }
         .chart-container {
             background: var(--bg-card); border: 1px solid var(--border);
             padding: 20px 10px 10px; position: relative;
@@ -395,6 +372,29 @@ html_template = '''<!DOCTYPE html>
         .standing-pct { color: var(--text-dim); font-size: 11px; width: 36px; text-align: right; }
         .standing-playoff { font-size: 8px; font-weight: 700; letter-spacing: 1.5px; color: var(--gold); opacity: 0.7; width: 30px; text-align: right; margin-left: 4px; }
         .footer { margin-top: 60px; padding-top: 20px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; }
+
+        /* --- Responsive --- */
+        @media (max-width: 1000px) {
+            .main-grid { grid-template-columns: 1fr; }
+            .sidebar { position: static; }
+            .standings-grid { grid-template-columns: 1fr 1fr 1fr; gap: 0 24px; }
+        }
+        @media (max-width: 600px) {
+            .container { padding: 24px 16px 40px; }
+            .header { margin-bottom: 30px; }
+            .eyebrow { font-size: 9px; letter-spacing: 3px; margin-bottom: 10px; }
+            .title { font-size: 28px; margin-bottom: 10px; }
+            .subtitle { font-size: 14px; }
+            .controls-bar { gap: 4px; margin-bottom: 8px; }
+            .controls-bar .label { font-size: 8px; margin-right: 4px; }
+            .mode-btn { font-size: 9px; padding: 6px 10px; letter-spacing: 1px; }
+            .chart-container { padding: 10px 2px 2px; }
+            .chart-container::before { font-size: 7px; letter-spacing: 2px; top: 3px; left: 8px; }
+            .standings-grid { grid-template-columns: 1fr 1fr; gap: 0 16px; }
+            .division-block { margin-bottom: 12px; }
+            .footer { flex-direction: column; gap: 4px; }
+            .footer-text { font-size: 9px; }
+        }
         .footer-text { font-size: 10px; letter-spacing: 1px; color: var(--text-dim); opacity: 0.4; }
         .js-plotly-plot .plotly .modebar { opacity: 0.3; }
         .js-plotly-plot .plotly .modebar:hover { opacity: 0.7; }
@@ -461,14 +461,19 @@ function getChartKey() {
 function renderChart() {
     const key = getChartKey();
     const spec = JSON.parse(CHARTS[key]);
-    const isMobile = window.innerWidth < 600;
+    const w = window.innerWidth;
+    const isMobile = w < 600;
+    const isTablet = w < 1000;
     if (isMobile) {
-        spec.layout.height = 400;
+        spec.layout.height = 350;
         spec.layout.margin = {t: 10, b: 30, l: 40, r: 10};
-        spec.layout.legend = {font: {size: 8}, x: 0, y: 1};
         if (spec.layout.yaxis) spec.layout.yaxis.title = null;
         if (spec.layout.xaxis) spec.layout.xaxis.title = null;
+    } else if (isTablet) {
+        spec.layout.height = 500;
+        spec.layout.margin = {t: 10, b: 35, l: 50, r: 15};
     }
+    spec.layout.showlegend = !isTablet;
     Plotly.react('chart', spec.data, spec.layout, {displayModeBar: !isMobile, responsive: true, modeBarButtonsToRemove: ['lasso2d','select2d']});
 }
 
