@@ -398,6 +398,7 @@ print("Charts precomputed.\n")
 # ---------------------------------------------------------------------------
 
 app = Dash(__name__, suppress_callback_exceptions=True)
+server = app.server  # Expose for gunicorn
 app.title = "2025 MLB Season Tracker"
 
 # Build team pill buttons
