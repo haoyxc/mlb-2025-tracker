@@ -385,9 +385,8 @@ html_template = '''<!DOCTYPE html>
 <div class="container">
     <div class="header">
         <div class="eyebrow">MAJOR LEAGUE BASEBALL</div>
-        <h1 class="title">The Arc of a <em>Season</em></h1>
-        <p class="subtitle">Every team's win percentage, game by game across the 2025 season.
-        Watch contenders separate from pretenders&mdash;and ask whether the first 30 games predict the final 130.</p>
+        <h1 class="title"><em>2025</em> Season</h1>
+        <p class="subtitle">Every team's win percentage, game by game across the full 162-game season.</p>
     </div>
 
     <div class="controls-bar">
