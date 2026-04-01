@@ -372,8 +372,7 @@ html_template = '''<!DOCTYPE html>
         }
         .sidebar { position: sticky; top: 40px; }
         .sidebar-title { font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: var(--gold); opacity: 0.5; margin-bottom: 20px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
-        .standings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 30px; }
-        .league-col {}
+        .standings-grid { display: grid; grid-template-columns: 1fr; gap: 0; }
         .league-label { font-size: 9px; letter-spacing: 3px; text-transform: uppercase; color: var(--gold); opacity: 0.4; margin-bottom: 14px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
         .division-block { margin-bottom: 20px; }
         .division-label { font-size: 9px; letter-spacing: 2.5px; text-transform: uppercase; color: var(--text-dim); opacity: 0.5; margin-bottom: 6px; }
@@ -389,7 +388,7 @@ html_template = '''<!DOCTYPE html>
         @media (max-width: 1000px) {
             .main-grid { grid-template-columns: 1fr; }
             .sidebar { position: static; }
-            .standings-grid { grid-template-columns: 1fr 1fr; gap: 0 30px; }
+            .standings-grid { grid-template-columns: 1fr 1fr; gap: 0 40px; }
         }
         @media (max-width: 600px) {
             .container { padding: 24px 16px 40px; }
