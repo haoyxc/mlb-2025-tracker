@@ -1,12 +1,15 @@
 """
-Fetch a full MLB season's game-by-game data and save to JSON.
+Fetch MLB season cache files and player progression cache files.
 
 Usage:
-    python fetch_data.py          # defaults to 2025
-    python fetch_data.py 2024     # fetch a different season
+    python fetch_data.py
+    python fetch_data.py 2024
+    python fetch_data.py --years 2021 2022 2023 2024 2025 --players
 """
+import argparse
 import json
-import sys
+from pathlib import Path
+
 import requests
 
 MLB_TEAM_IDS = {
@@ -18,39 +21,82 @@ MLB_TEAM_IDS = {
     'STL': 138, 'TBR': 139, 'TEX': 140, 'TOR': 141, 'WSN': 120,
 }
 
-def fetch_season(year):
+PLAYER_SEASONS = [2023, 2024, 2025]
+PLAYER_TARGETS = {
+    'david-peterson': {
+        'player_id': 656849,
+        'name': 'David Peterson',
+        'kind': 'pitcher',
+        'group': 'pitching',
+        'metric': 'era',
+        'metric_label': 'ERA',
+    },
+    'corey-seager': {
+        'player_id': 608369,
+        'name': 'Corey Seager',
+        'kind': 'batter',
+        'group': 'hitting',
+        'metric': 'batting_average',
+        'metric_label': 'AVG',
+    },
+}
+
+
+def request_json(session, url, params, timeout=20):
+    response = session.get(url, params=params, timeout=timeout)
+    response.raise_for_status()
+    return response.json()
+
+
+def write_json(path, payload):
+    Path(path).write_text(
+        json.dumps(payload, sort_keys=True, separators=(',', ':')) + '\n'
+    )
+
+
+def fetch_season(year, session=None):
+    session = session or requests.Session()
     all_teams = {}
     for team, team_id in MLB_TEAM_IDS.items():
         try:
-            r = requests.get("https://statsapi.mlb.com/api/v1/schedule", params={
-                "sportId": 1, "teamId": team_id, "season": year, "gameType": "R",
-                "startDate": f"{year}-03-01", "endDate": f"{year}-10-15",
-            }, timeout=20)
+            raw = request_json(
+                session,
+                "https://statsapi.mlb.com/api/v1/schedule",
+                {
+                    "sportId": 1,
+                    "teamId": team_id,
+                    "season": year,
+                    "gameType": "R",
+                    "startDate": f"{year}-03-01",
+                    "endDate": f"{year}-10-15",
+                },
+            )
 
             games = []
             seen_pks = set()
-            for de in r.json().get('dates', []):
-                for g in de['games']:
-                    if g['status']['detailedState'] not in ('Final', 'Completed Early'):
+            for date_entry in raw.get('dates', []):
+                for game in date_entry.get('games', []):
+                    if game.get('status', {}).get('detailedState') not in ('Final', 'Completed Early'):
                         continue
-                    pk = g['gamePk']
-                    if pk in seen_pks:
+                    game_pk = game.get('gamePk')
+                    if game_pk in seen_pks:
                         continue
-                    seen_pks.add(pk)
+                    seen_pks.add(game_pk)
 
-                    away, home = g['teams']['away'], g['teams']['home']
+                    away = game['teams']['away']
+                    home = game['teams']['home']
                     is_home = home['team']['id'] == team_id
                     if is_home:
                         won = home.get('isWinner', False)
-                        opp_name = away['team']['name']
+                        opponent = away['team']['name']
                     else:
                         won = away.get('isWinner', False)
-                        opp_name = home['team']['name']
+                        opponent = home['team']['name']
 
                     games.append({
-                        'date': de['date'],
-                        'opp': opp_name,
-                        'won': won,
+                        'date': date_entry['date'],
+                        'opp': opponent,
+                        'won': bool(won),
                         'wl': 'W' if won else 'L',
                     })
 
@@ -58,56 +104,255 @@ def fetch_season(year):
                 print(f"  {team}: no games found")
                 continue
 
-            w = sum(1 for g in games if g['won'])
-            l = len(games) - w
-            print(f"  {team}: {len(games)}g ({w}-{l})")
+            wins = sum(1 for game in games if game['won'])
+            losses = len(games) - wins
+            print(f"  {team}: {len(games)}g ({wins}-{losses})")
             all_teams[team] = games
 
-        except Exception as e:
-            print(f"  {team}: SKIP - {e}")
+        except Exception as exc:
+            print(f"  {team}: SKIP - {exc}")
 
     return all_teams
 
 
-def get_playoff_teams(year):
-    """Get playoff teams from standings API (clinch indicators)."""
+def get_playoff_teams(year, session=None):
+    session = session or requests.Session()
     try:
-        r = requests.get("https://statsapi.mlb.com/api/v1/standings",
-                         params={"leagueId": "103,104", "season": year,
-                                 "standingsTypes": "regularSeason"},
-                         timeout=15)
+        raw = request_json(
+            session,
+            "https://statsapi.mlb.com/api/v1/standings",
+            {
+                "leagueId": "103,104",
+                "season": year,
+                "standingsTypes": "regularSeason",
+            },
+            timeout=15,
+        )
         playoff_ids = set()
-        for record in r.json()['records']:
-            for tr in record['teamRecords']:
-                if tr.get('clinchIndicator', '') in ('y', 'z', 'x', 'w'):
-                    playoff_ids.add(tr['team']['id'])
+        for record in raw.get('records', []):
+            for team_record in record.get('teamRecords', []):
+                if team_record.get('clinchIndicator', '') in ('y', 'z', 'x', 'w'):
+                    playoff_ids.add(team_record['team']['id'])
 
-        # Map back to abbreviations
-        id_to_abbr = {v: k for k, v in MLB_TEAM_IDS.items()}
-        return sorted([id_to_abbr[tid] for tid in playoff_ids if tid in id_to_abbr])
-    except Exception as e:
-        print(f"  Could not fetch playoff teams: {e}")
+        id_to_abbr = {team_id: abbr for abbr, team_id in MLB_TEAM_IDS.items()}
+        return sorted(id_to_abbr[team_id] for team_id in playoff_ids if team_id in id_to_abbr)
+    except Exception as exc:
+        print(f"  Could not fetch playoff teams: {exc}")
         return []
 
 
-if __name__ == '__main__':
-    year = int(sys.argv[1]) if len(sys.argv) > 1 else 2025
+def as_int(value, default=0):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
 
-    print(f"Fetching {year} season data...")
-    season = fetch_season(year)
 
-    print(f"\nFetching {year} playoff teams...")
-    playoffs = get_playoff_teams(year)
-    print(f"  Playoff teams: {playoffs}")
+def outs_from_innings(value):
+    if value in (None, '', '-.--'):
+        return 0
+    text = str(value)
+    if '.' not in text:
+        return as_int(text) * 3
+    whole, frac = text.split('.', 1)
+    return as_int(whole) * 3 + as_int(frac[:1])
 
-    output = {
-        'year': year,
-        'playoff_teams': playoffs,
-        'teams': season,
+
+def player_sort_key(row):
+    return (
+        str(row.get('date', '')),
+        str(row.get('game_time') or ''),
+        as_int(row.get('game_pk')),
+    )
+
+
+def order_player_game_rows(rows):
+    return sorted(rows, key=player_sort_key)
+
+
+def format_average(value):
+    if value is None:
+        return 'N/A'
+    text = f"{value:.3f}"
+    return text[1:] if text.startswith('0') else text
+
+
+def calculate_pitcher_progression(rows, season):
+    ordered = order_player_game_rows(rows)
+    cumulative_outs = 0
+    cumulative_earned_runs = 0
+    previous_metric_value = None
+    previous_display_value = 'N/A'
+    output = []
+    for index, row in enumerate(ordered, start=1):
+        outs = as_int(row.get('outs'))
+        earned_runs = as_int(row.get('earned_runs'))
+        cumulative_outs += outs
+        cumulative_earned_runs += earned_runs
+        metric_value = None
+        display_value = 'N/A'
+        if outs == 0:
+            metric_value = previous_metric_value
+            display_value = previous_display_value
+        elif cumulative_outs:
+            metric_value = cumulative_earned_runs * 27 / cumulative_outs
+            display_value = f"{metric_value:.2f}"
+        previous_metric_value = metric_value
+        previous_display_value = display_value
+
+        output.append({
+            'season': int(season),
+            'game_number': index,
+            'date': row['date'],
+            'game_pk': as_int(row.get('game_pk')),
+            'opponent': row.get('opponent', ''),
+            'home_away': row.get('home_away', ''),
+            'outs': outs,
+            'earned_runs': earned_runs,
+            'cum_outs': cumulative_outs,
+            'cum_earned_runs': cumulative_earned_runs,
+            'metric_value': metric_value,
+            'display_value': display_value,
+        })
+    return output
+
+
+def calculate_batter_progression(rows, season):
+    ordered = order_player_game_rows(rows)
+    cumulative_at_bats = 0
+    cumulative_hits = 0
+    output = []
+    for index, row in enumerate(ordered, start=1):
+        at_bats = as_int(row.get('at_bats'))
+        hits = as_int(row.get('hits'))
+        cumulative_at_bats += at_bats
+        cumulative_hits += hits
+        metric_value = None
+        if cumulative_at_bats:
+            metric_value = cumulative_hits / cumulative_at_bats
+
+        output.append({
+            'season': int(season),
+            'game_number': index,
+            'date': row['date'],
+            'game_pk': as_int(row.get('game_pk')),
+            'opponent': row.get('opponent', ''),
+            'home_away': row.get('home_away', ''),
+            'at_bats': at_bats,
+            'hits': hits,
+            'cum_at_bats': cumulative_at_bats,
+            'cum_hits': cumulative_hits,
+            'metric_value': metric_value,
+            'display_value': format_average(metric_value),
+        })
+    return output
+
+
+def fetch_player_game_rows(session, player_id, group, season):
+    raw = request_json(
+        session,
+        f"https://statsapi.mlb.com/api/v1/people/{player_id}/stats",
+        {
+            "stats": "gameLog",
+            "group": group,
+            "season": season,
+            "sportIds": 1,
+            "gameType": "R",
+        },
+    )
+    stats = raw.get('stats', [])
+    splits = stats[0].get('splits', []) if stats else []
+    rows = []
+    for split in splits:
+        stat = split.get('stat', {})
+        game = split.get('game', {})
+        row = {
+            'date': split.get('date', ''),
+            'game_time': game.get('gameDate', ''),
+            'game_pk': game.get('gamePk', 0),
+            'opponent': split.get('opponent', {}).get('name', ''),
+            'home_away': 'home' if split.get('isHome') else 'away',
+        }
+        if group == 'pitching':
+            row.update({
+                'outs': as_int(stat.get('outs'), outs_from_innings(stat.get('inningsPitched'))),
+                'earned_runs': as_int(stat.get('earnedRuns')),
+            })
+        else:
+            row.update({
+                'at_bats': as_int(stat.get('atBats')),
+                'hits': as_int(stat.get('hits')),
+            })
+        rows.append(row)
+    return rows
+
+
+def fetch_player_progressions(session=None):
+    session = session or requests.Session()
+    players = {}
+    for slug, info in PLAYER_TARGETS.items():
+        print(f"\nFetching {info['name']} game logs...")
+        season_map = {}
+        for season in PLAYER_SEASONS:
+            rows = fetch_player_game_rows(session, info['player_id'], info['group'], season)
+            if info['kind'] == 'pitcher':
+                season_rows = calculate_pitcher_progression(rows, season)
+            else:
+                season_rows = calculate_batter_progression(rows, season)
+            season_map[str(season)] = season_rows
+            print(f"  {season}: {len(season_rows)} games")
+
+        players[slug] = {
+            'player_id': info['player_id'],
+            'name': info['name'],
+            'kind': info['kind'],
+            'metric': info['metric'],
+            'metric_label': info['metric_label'],
+            'seasons': season_map,
+        }
+
+    return {
+        'schema_version': 1,
+        'seasons': PLAYER_SEASONS,
+        'players': players,
     }
 
-    filename = f'data_{year}.json'
-    with open(filename, 'w') as f:
-        json.dump(output, f)
 
-    print(f"\nSaved to {filename} ({len(season)} teams)")
+def build_arg_parser():
+    parser = argparse.ArgumentParser(description='Fetch cached MLB tracker data.')
+    parser.add_argument('year', nargs='?', type=int, help='Single season to fetch.')
+    parser.add_argument('--years', nargs='+', type=int, help='One or more seasons to fetch.')
+    parser.add_argument('--players', action='store_true', help='Fetch player progression cache.')
+    return parser
+
+
+def main():
+    args = build_arg_parser().parse_args()
+    years = args.years if args.years else [args.year or 2025]
+    session = requests.Session()
+
+    for year in years:
+        print(f"Fetching {year} season data...")
+        season = fetch_season(year, session=session)
+
+        print(f"\nFetching {year} playoff teams...")
+        playoffs = get_playoff_teams(year, session=session)
+        print(f"  Playoff teams: {playoffs}")
+
+        output = {
+            'year': year,
+            'playoff_teams': playoffs,
+            'teams': season,
+        }
+        filename = f'data_{year}.json'
+        write_json(filename, output)
+        print(f"Saved to {filename} ({len(season)} teams)\n")
+
+    if args.players:
+        progressions = fetch_player_progressions(session=session)
+        write_json('player_progressions.json', progressions)
+        print("\nSaved to player_progressions.json")
+
+
+if __name__ == '__main__':
+    main()
